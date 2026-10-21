@@ -559,6 +559,27 @@ const BUILDS=[{id:"lean",n:"Lean"},{id:"average",n:"Average"},{id:"heavy",n:"Hea
 const JAWS=[{id:.1,n:"Narrow jaw"},{id:.55,n:"Square jaw"},{id:.95,n:"Heavy jaw"}];
 const EXPRS=[{id:"stone",n:"Stone-faced"},{id:"scowl",n:"Scowl"},{id:"smirk",n:"Smirk"}];
 const OUTFITS=[{id:"suit",n:"Suit and tie"},{id:"open",n:"Open collar"},{id:"turtle",n:"Turtleneck"}];
+/* ---- PNG art layers (optional) --------------------------------------------
+   Drop PNGs in a /portraits folder next to index.html and list them here.
+   Each must be 200x240, transparent, head centered to match the face.
+   Any id NOT listed here just uses the built-in drawn shape, so you can add
+   art one piece at a time and nothing breaks.
+   Hair PNGs are tinted by hair color automatically IF drawn in white/grey.
+   --------------------------------------------------------------------------- */
+const ART={
+  base:"portraits/",          // folder; set to "" to disable PNG art entirely
+  hair:{ /* e.g. slick:"hair-slick.png", pomp:"hair-pomp.png" */ },
+  outfit:{ /* e.g. suit:"suit.png", leather:"leather.png" */ },
+  hat:{ /* e.g. fedora:"hat-fedora.png", cap:"hat-cap.png" */ },
+  facial:{ /* e.g. beard:"facial-beard.png" */ },
+  tintHair:true               // true = recolor white/grey hair PNGs to the chosen hair color
+};
+function artURL(kind,id){ if(!ART.base||!ART[kind]||!ART[kind][id]) return null; return ART.base+ART[kind][id]; }
+function _hx(hex,ch){ const h=(hex||"#000").replace("#",""); const n=parseInt(h.length===3?h[ch].repeat(2):h.substr(ch*2,2),16); return (isFinite(n)?n:0)/255; }
+function artLayer(kind,id,extra){ const u=artURL(kind,id); if(!u) return null;
+  const tint=(kind==="hair"&&ART.tintHair&&extra&&extra.hc)?`filter:url(#hairtint_${extra.tid})`:"";
+  return `<image href="${u}" x="0" y="0" width="200" height="240" preserveAspectRatio="xMidYMid meet" style="${tint}"/>`;
+}
 const ACCS=[{id:"none",n:"Nothing"},{id:"shades",n:"Shades"},{id:"cigar",n:"Cigar"},{id:"toothpick",n:"Toothpick"}];
 const LIGHT_EYES=["irish","russian","ukrainian","polish","georgian","jewish","italian","greek","albanian"];
 const NICKS = ["Sonny","the Chin","Lucky","Big","Slim","Smoke","Ice","Doc","the Professor","Bulldog","Kid","Shades","Ghost","Fat","Cheech","Sugar","the Butcher","Junior","Red","Books","Two-Times","Silk","Peaches","the Saint","Cadillac","Nails"];
@@ -1059,10 +1080,21 @@ function portrait(c,lite){
     if(L.acc==="toothpick") acc=`<path d="M${X(mw-2)} ${my+.5} L${X(mw+20)} ${my+8}" stroke="#D8BE8A" stroke-width="1.6" stroke-linecap="round"/>`;
   }
 
+  // --- PNG art overrides: if a matching PNG exists, use it instead of the drawn shape ---
+  const tid=id; let hairTintDef="";
+  const hairPng=artLayer("hair",hstyle,{hc,tid});
+  if(hairPng){ top=hairPng; if(ART.tintHair){ hairTintDef=`<filter id="hairtint_${tid}" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0 0 0 0 ${_hx(hc,0)} 0 0 0 0 ${_hx(hc,1)} 0 0 0 0 ${_hx(hc,2)} 0 0 0 1 0"/></filter>`; } }
+  const outfitPng=artLayer("outfit",L.outfit);
+  if(outfitPng) body=outfitPng;
+  const facialPng=artLayer("facial",L.facial);
+  const hatPng=artLayer("hat",L.hat);
+  if(hatPng) hat=hatPng;
+  const extraFacial=facialPng||"";
+
   const zoom=kid?`translate(100 140) scale(.95) translate(-100 -140)`:`translate(100 118) scale(1.14) translate(-100 -118)`;
   return `<svg viewBox="0 0 200 240" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Portrait of ${esc(c.first)}">
-  ${bg}
-  <g transform="${zoom}">${back}${body}${face}${top}${hat}${acc}</g>
+  ${bg}${hairTintDef?`<defs>${hairTintDef}</defs>`:""}
+  <g transform="${zoom}">${back}${body}${face}${extraFacial}${top}${hat}${acc}</g>
   <rect width="200" height="240" fill="url(#${id}vg)"/>
   ${lite?"":`<rect width="200" height="240" fill="transparent" filter="url(#${id}gr)"/>`}
   </svg>`;
